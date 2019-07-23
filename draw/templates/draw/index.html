@@ -11,6 +11,10 @@
     <script type="text/javascript" src="{% static 'draw/vendor/paper/paper-full.min.js' %}"></script>
 
     <style type="text/css">
+      canvas {
+        border: 4px solid teal;
+        position: center;
+      }
     </style>
 
 </head>
@@ -24,13 +28,76 @@
     var canvas = document.getElementById('myCanvas');
     paper.setup(canvas);
     var tool = new paper.Tool();
-
-    // getting the URL (you may want to use for Exercise 3)
+    var socket = new WebSocket(
+       'wss://p3-websockets-enjixx-kenkhlen865098.codeanyapp.com/ws/draw');
     var url = window.location.href;
+  
 
-    // var socket = new WebSocket(
-    //     'wss://<your url here>/ws/draw');
+     //Random Color generator 
+    function RandomColor() {
+      return '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+    }
+  
+    // list of paths
+    var otherpaths = {};  
+    //id for each message 
+    var id = Math.floor(Math.random() * 10000) + 1
+    
+    var path = new paper.Path();  
+    var color = RandomColor();      
+   
+    // mouse movement draw  
+    tool.onMouseMove = function(event) {     
+      path.strokeColor = color;
+      path.strokeWidth = 4;   
+      path.add(event.point);
+      let message = {
+        id: id, 
+        x: event.point.x, 
+        y: event.point.y, 
+        color: color,
+        strokeWidth: 4 };
+      socket.send(JSON.stringify(message));
+  
+    };
 
+      
+     if (url.indexOf('large') !== -1 ) {
+       socket.onmessage = function(receivedMessage) {
+       let incoming = JSON.parse(receivedMessage.data);
+         
+       if (incoming.id in otherpaths){
+         otherpaths[incoming.id].add(new paper.Point(incoming.x,incoming.y));
+       } else{
+         otherpaths[incoming.id] = new paper.Path();
+         otherpaths[incoming.id].strokeColor = incoming.color;
+         otherpaths[incoming.id].strokeWidth = incoming.strokeWidth;      
+         otherpaths[incoming.id].add(new paper.Point(incoming.x,incoming.y));
+       } 
+      };
+    }
+      socket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+  
+  
+     // Change color on right tilt  
+       window.addEventListener('deviceorientation', (event) => {
+        if (event.gamma > 30) {
+           path.strokeColor = paper.Color.random();
+        }
+        
+       });
+  
+       // Clear canvas on shake 
+       window.addEventListener('devicemotion', (event) => {
+        var x_acceleration = event.acceleration.x;
+        var y_acceleration = event.acceleration.y;
+        var z_acceleration = event.acceleration.z;
+        if (Math.abs(x_acceleration > 10) || Math.abs(y_acceleration) >10 || Math.abs(z_acceleration) > 10){
+          paper.project.clear();
+        }
+     });  
 
 </script>
 </html>
