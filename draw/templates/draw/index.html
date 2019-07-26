@@ -1,5 +1,4 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,29 +8,90 @@
     <link rel="stylesheet" type="text/css" href="{% static 'draw/vendor/bootstrap/css/bootstrap.min.css' %}">
     <script type="text/javascript" src="{% static 'draw/vendor/jquery/jquery-3.3.1.min.js' %}"></script>
     <script type="text/javascript" src="{% static 'draw/vendor/paper/paper-full.min.js' %}"></script>
+   <script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+   
+
+   
+  
+    
 
     <style type="text/css">
+      
+      body{
+        margin: 0;
+        padding: 0;
+        min-width: 100%; 
+        min-height: 100%;
+      }
       canvas {
         border: 4px solid teal;
         position: center;
+        background:transparent;
+        opacity: .5;
       }
+      #myVideo {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        min-width: 100%; 
+        min-height: 100%;
+      }
+      
+      div.clickEffect{
+        position:fixed;
+        box-sizing:border-box;
+        border-style:solid;
+/*         border-color:pink; */
+        border-radius:50%;
+        animation:clickEffect 1.0s ease-out;
+        z-index:99999;
+        }
+      @keyframes clickEffect{
+        0%{
+          opacity:1;
+          width:0.5em; height:0.5em;
+          margin:-0.25em;
+          border-width:0.5em;
+         
+        }
+        100%{
+          opacity:0.2;
+          width:15em; height:15em;
+          margin:-7.5em;
+          border-width:1.03em;
+       
+        }
+        
+     
+      }
+      
+      
     </style>
 
 </head>
 <body>
     <!-- You may change the dimensions of this canvas -->
-    <canvas id="myCanvas" width="750px" height="750px"></canvas>
+   <canvas id="myCanvas" width="1470px" height="850px"></canvas>
+  
+  <div id = "myVideo" style="position: fixed; z-index: -1; width: 100%; height: 100%">
+  <iframe width="1470px" height="850px" src="https://www.youtube.com/embed/-ufDMAktwNE?rel=0;&autoplay=1&mute=0" allow="autoplay" frameborder="0" allowfullscreen include></iframe>
+  </div>
+<!--   <iframe width="560" height="315" src="https://www.youtube.com/embed/-ufDMAktwNE?rel=0;&autoplay=1&mute=0" frameborder="0" allowfullscreen include></iframe>
+ -->
+    
+  
 </body>
 <script>
-
+  
+   
     // setting up the canvas and one paper tool
     var canvas = document.getElementById('myCanvas');
     paper.setup(canvas);
+    var ctx = canvas.getContext("2d");
     var tool = new paper.Tool();
     var socket = new WebSocket(
        'wss://p3-websockets-enjixx-kenkhlen865098.codeanyapp.com/ws/draw');
     var url = window.location.href;
-  
 
      //Random Color generator 
     function RandomColor() {
@@ -42,25 +102,92 @@
     var otherpaths = {};  
     //id for each message 
     var id = Math.floor(Math.random() * 10000) + 1
+    var color = RandomColor();  
+   var path = new paper.Path();
+
     
-    var path = new paper.Path();  
-    var color = RandomColor();      
-   
-    // mouse movement draw  
-    tool.onMouseMove = function(event) {     
+  
+  function clear() {
+
+   ctx.clearRect(0,0, canvas.width, canvas.height);
+
+    
+  };
+  
+  
+    var i = 0;
+   tool.onMouseMove = function(event) {
       path.strokeColor = color;
-      path.strokeWidth = 4;   
+      path.strokeWidth = 10;  
+      path.strokeCap = 'round';
+      path.strokeJoin = 'round';   
+    
       path.add(event.point);
-      let message = {
+         
+     var t = setInterval(clear, 2000);
+     
+     let message = {
         id: id, 
         x: event.point.x, 
         y: event.point.y, 
         color: color,
         strokeWidth: 4 };
       socket.send(JSON.stringify(message));
+     
+   }
   
-    };
+  
+    tool.onMouseDown = function(event) {     
 
+      path.add(event.point);
+         
+     var t = setInterval(clear, 3000);
+      
+     
+      if (i !== 6) {
+             i = i + 1;
+        console.log(i);
+     path.strokeColor = color;
+     path.strokeWidth = 10;  
+      path.strokeCap = 'round';
+      path.strokeJoin = 'round';  
+
+ 
+        }
+       if (i == 6) {
+         path.strokeColor = 'red'; 
+
+        i = 0;
+      } 
+       
+       
+       let message = {
+        id: id, 
+        x: event.point.x, 
+        y: event.point.y, 
+        color: color,
+        strokeWidth: 4 };
+      socket.send(JSON.stringify(message));
+    };
+  
+  
+   
+//   function clickEffect(e){
+//   var d=document.createElement("div");
+//   d.className="clickEffect";
+//   d.style.top=e.clientY+"px";d.style.left=e.clientX+"px";
+//   document.body.appendChild(d);
+//   d.addEventListener('animationend',function(){d.parentElement.removeChild(d);}.bind(this));
+//     d.style.borderColor = RandomColor();    
+//     };
+  
+//   document.addEventListener('click', clickEffect ); 
+//   var e = document.getElementsByClassName("clickEffect");
+//   e.style.borderColor = 'pink';
+ 
+  
+ 
+  
       
      if (url.indexOf('large') !== -1 ) {
        socket.onmessage = function(receivedMessage) {
@@ -68,11 +195,15 @@
          
        if (incoming.id in otherpaths){
          otherpaths[incoming.id].add(new paper.Point(incoming.x,incoming.y));
-       } else{
+
+       } else {
          otherpaths[incoming.id] = new paper.Path();
          otherpaths[incoming.id].strokeColor = incoming.color;
-         otherpaths[incoming.id].strokeWidth = incoming.strokeWidth;      
+         otherpaths[incoming.id].strokeWidth = incoming.strokeWidth;
+         otherpaths[incoming.id].strokeJoin = incoming.strokeJoin;
+         otherpaths[incoming.id].strokeCap = incoming.strokeCap;
          otherpaths[incoming.id].add(new paper.Point(incoming.x,incoming.y));
+        
        } 
       };
     }
@@ -81,23 +212,7 @@
     };
   
   
-     // Change color on right tilt  
-       window.addEventListener('deviceorientation', (event) => {
-        if (event.gamma > 30) {
-           path.strokeColor = paper.Color.random();
-        }
-        
-       });
-  
-       // Clear canvas on shake 
-       window.addEventListener('devicemotion', (event) => {
-        var x_acceleration = event.acceleration.x;
-        var y_acceleration = event.acceleration.y;
-        var z_acceleration = event.acceleration.z;
-        if (Math.abs(x_acceleration > 10) || Math.abs(y_acceleration) >10 || Math.abs(z_acceleration) > 10){
-          paper.project.clear();
-        }
-     });  
+    
 
 </script>
 </html>
